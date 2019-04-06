@@ -58,9 +58,7 @@ static void getHostName(char* hostname, int maxlen) {
   }
 }
 
-
-int main(int argc, char* argv[])
-{
+ cudaStream_t* ar(int nDev, int argc, char* argv[]){
   int size = 32*1024*1024;
 
   int myRank, nRanks, localRank = 0;
@@ -90,7 +88,7 @@ int main(int argc, char* argv[])
 
   //nvidia
   //each process is using two GPUs
-  int nDev = 2;
+  //int nDev = 2;
 
 
   float** sendbuff = (float**)malloc(nDev * sizeof(float*));
@@ -124,6 +122,7 @@ int main(int argc, char* argv[])
   NCCLCHECK(ncclGroupStart());
   for (int i=0; i<nDev; i++) {
      CUDACHECK(cudaSetDevice(localRank*nDev + i));
+     printf("cuda set device %d\n",(localRank*nDev + i));
      NCCLCHECK(ncclCommInitRank(comms+i, nRanks*nDev, id, myRank*nDev + i));
   }
   NCCLCHECK(ncclGroupEnd());
@@ -137,33 +136,32 @@ int main(int argc, char* argv[])
            comms[i], s[i]));
   NCCLCHECK(ncclGroupEnd());
 
-  //synchronizing on CUDA stream to complete NCCL communication
-  for (int i=0; i<nDev; i++)
-      CUDACHECK(cudaStreamSynchronize(s[i]));
-
-
-  //freeing device memory
-  for (int i=0; i<nDev; i++) {
-     CUDACHECK(cudaFree(sendbuff[i]));
-     CUDACHECK(cudaFree(recvbuff[i]));
-  }
-
-
   //finalizing NCCL
   for (int i=0; i<nDev; i++) {
      ncclCommDestroy(comms[i]);
   }
 
+  return s;
 
+}
+
+void wait(int nDev, cudaStream_t* s){
+  //synchronizing on CUDA stream to complete NCCL communication
+  for (int i=0; i<nDev; i++)
+      CUDACHECK(cudaStreamSynchronize(s[i]));
   //finalizing MPI
   MPICHECK(MPI_Finalize());
+}
 
 
+int main(int argc, char* argv[])
+{
+  int nDev=2;
+  cudaStream_t* s = ar(nDev, argc, argv);
+  wait(nDev, s);
+/*
   printf("[MPI Rank %d] Success \n", myRank);
-
-
-  printf("done\n");
-
+*/
   return 0;
 }
 
