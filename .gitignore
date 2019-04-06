@@ -1,3 +1,10 @@
 .*.swp
 id_rsa
 id_rsa.pub
+Dockerfile
+docker-helper.sh
+nccl_test
+origin
+test_ranks
+wrapper
+wrapper.cc
