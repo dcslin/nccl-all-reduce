@@ -1,22 +1,5 @@
 #include "communicator.h"
 
-void test(){
-  int size=4;
-  float send[size] = {1.0,2.0,1.0,2.0};
-  float* send_d;
-
-  CUDACHECK(cudaSetDevice(0));
-  CUDACHECK(cudaMalloc((void **)&send_d, size*sizeof(float)));
-  CUDACHECK(cudaMemcpy(send_d,send,size*sizeof(float),cudaMemcpyHostToDevice));
-
-  float receive[size];
-  CUDACHECK(cudaMemcpy(receive,send_d,size*sizeof(float),cudaMemcpyDeviceToHost));
-
-  std::cout << "received" << receive[0] << "\n";
-
-  cudaFree(&send_d);
-}
-
 int main(int argc, char *argv[])
 {
   // init MPI env
@@ -46,13 +29,12 @@ int main(int argc, char *argv[])
     CUDACHECK(cudaMemset(recvbuff[i], 0, size * sizeof(float)));
   }
 
-  //test();
-
   // main process of all reduce
   std::cout<<"doing all reduce..\n";
   c.allReduce(size, sendbuff, recvbuff);
   std::cout<<"doing waiting..\n";
   c.wait();
+
 
   //just test for first gpu
   float receive[size];
@@ -60,6 +42,7 @@ int main(int argc, char *argv[])
   CUDACHECK(cudaMemcpy(receive,recvbuff[0],size*sizeof(float),cudaMemcpyDeviceToHost));
   std::cout << "received buff: " << receive[0] << " vs 40 expected"<< "\n";
   std::cout << "received buff: " << receive[1] << " vs 44 expected"<< "\n";
+
 
   // clean up
   for (int i=0; i<nDev; i++) {
