@@ -1,42 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include "cuda_runtime.h"
-#include "nccl.h"
-
-#include "mpi.h"
-#include <unistd.h>
-#include <stdint.h>
-
-
-#define MPICHECK(cmd) do {                          \
-  int e = cmd;                                      \
-  if( e != MPI_SUCCESS ) {                          \
-    printf("Failed: MPI error %s:%d '%d'\n",        \
-        __FILE__,__LINE__, e);   \
-    exit(EXIT_FAILURE);                             \
-  }                                                 \
-} while(0)
-
-
-#define CUDACHECK(cmd) do {                         \
-  cudaError_t e = cmd;                              \
-  if( e != cudaSuccess ) {                          \
-    printf("Failed: Cuda error %s:%d '%s'\n",             \
-        __FILE__,__LINE__,cudaGetErrorString(e));   \
-    exit(EXIT_FAILURE);                             \
-  }                                                 \
-} while(0)
-
-
-#define NCCLCHECK(cmd) do {                         \
-  ncclResult_t r = cmd;                             \
-  if (r!= ncclSuccess) {                            \
-    printf("Failed, NCCL error %s:%d '%s'\n",             \
-        __FILE__,__LINE__,ncclGetErrorString(r));   \
-    exit(EXIT_FAILURE);                             \
-  }                                                 \
-} while(0)
-
+#include "communicator.h"
 
 static uint64_t getHostHash(const char* string) {
   // Based on DJB2, result = result * 33 + char
@@ -58,132 +20,83 @@ static void getHostName(char* hostname, int maxlen) {
   }
 }
 
-class Wrapper
+
+Communicator::Communicator(int nDev): nDev(nDev){
+  // get MPI Global Ranks and total Ranks
+  MPICHECK(MPI_Comm_rank(MPI_COMM_WORLD, &MPIRankInGlobal));
+  MPICHECK(MPI_Comm_size(MPI_COMM_WORLD, &totalMPIRanksInGlobal));
+  std::cout<<"g rank " << MPIRankInGlobal << "\n";
+
+  //calculating MPIRankInLocal which is used in selecting a GPU
+  MPIRankInLocal=0;
+  uint64_t hostHashs[totalMPIRanksInGlobal];
+  char hostname[1024];
+  getHostName(hostname, 1024);
+  hostHashs[MPIRankInGlobal] = getHostHash(hostname);
+  MPICHECK(MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, hostHashs,
+    		 sizeof(uint64_t), MPI_BYTE, MPI_COMM_WORLD));
+  for (int p=0; p<totalMPIRanksInGlobal; p++) {
+     if (p == MPIRankInGlobal) break;
+     if (hostHashs[p] == hostHashs[MPIRankInGlobal]) MPIRankInLocal++;
+  }
+
+  std::cout<<"l rank " << MPIRankInLocal << "\n";
+
+  //picking GPUs based on MPIRankInLocal
+  //create cuda stream s
+  s = (cudaStream_t*)malloc(sizeof(cudaStream_t)*nDev);
+  for (int i = 0; i < nDev; ++i) {
+    CUDACHECK(cudaSetDevice(MPIRankInLocal*nDev + i));
+    CUDACHECK(cudaStreamCreate(s+i));
+  }
+
+  // create nccl comms 
+  ncclUniqueId id;
+  comms=(ncclComm_t*)malloc(sizeof(ncclComm_t)*nDev);
+  
+
+  //generating NCCL unique nccl ID at one process and broadcasting it to all
+  if (MPIRankInGlobal == 0) ncclGetUniqueId(&id);
+  MPICHECK(MPI_Bcast((void *)&id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD));
+
+
+  //initializing NCCL, group API is required around ncclCommInitRank as it is
+  //called across multiple GPUs in each thread/process
+  NCCLCHECK(ncclGroupStart());
+  for (int i=0; i<nDev; i++) {
+    CUDACHECK(cudaSetDevice(MPIRankInLocal*nDev + i));
+    NCCLCHECK(ncclCommInitRank(comms+i,
+                               totalMPIRanksInGlobal*nDev,
+                               id, 
+    						     MPIRankInGlobal*nDev + i));
+  }
+  NCCLCHECK(ncclGroupEnd());
+} // end of constructor 
+
+
+void Communicator::allReduce(int size, float** sendbuff, float** recvbuff)
 {
-  public:
-  int nDev;
-  cudaStream_t* s;
-  int myRank, nRanks, localRank;
+  //calling NCCL communication API. Group API is required when using
+  //multiple devices per thread/process
+  NCCLCHECK(ncclGroupStart());
+  for (int i=0; i<nDev; i++)
+     NCCLCHECK(ncclAllReduce((const void*)sendbuff[i],
+                             (void*)recvbuff[i],
+    						   size,
+                             ncclFloat,
+                             ncclSum,
+                             comms[i],
+                             s[i]));
+  NCCLCHECK(ncclGroupEnd());
+}
 
-  Wrapper(){
-    nDev=2; 
-    myRank, nRanks, localRank = 0;
-  }
-  ~Wrapper(){
-    //finalizing MPI
-    MPICHECK(MPI_Finalize());
+void Communicator::wait(){
+  //synchronizing on CUDA stream to complete NCCL communication
+  for (int i=0; i<nDev; i++)
+    CUDACHECK(cudaStreamSynchronize(s[i]));
+}
 
-  }
-
-  void do_all_reduce(
-          int argc,
-          char* argv[]
-          ) { 
-    /* 
-     * do all reduce
-     * */
-    printf("async all reduce ...\n");
-
-    int size = 32*1024*1024;
-
-    MPICHECK(MPI_Init(&argc, &argv));
-    MPICHECK(MPI_Comm_rank(MPI_COMM_WORLD, &myRank));
-    MPICHECK(MPI_Comm_size(MPI_COMM_WORLD, &nRanks));
-
-    // out
-    printf("myrank: %d\n",myRank);
-    printf("nranks: %d\n",nRanks);
-
-
-    //calculating localRank which is used in selecting a GPU
-    uint64_t hostHashs[nRanks];
-    char hostname[1024];
-    getHostName(hostname, 1024);
-    hostHashs[myRank] = getHostHash(hostname);
-    MPICHECK(MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, hostHashs, sizeof(uint64_t), MPI_BYTE, MPI_COMM_WORLD));
-    for (int p=0; p<nRanks; p++) {
-       if (p == myRank) break;
-       if (hostHashs[p] == hostHashs[myRank]) localRank++;
-    }
-
-    //localRank
-    printf("localranks@%s: %d\n",hostname,localRank);
-    
-
-    float** sendbuff = (float**)malloc(nDev * sizeof(float*));
-    float** recvbuff = (float**)malloc(nDev * sizeof(float*));
-    s = (cudaStream_t*)malloc(sizeof(cudaStream_t)*nDev);
-  
-  
-    //picking GPUs based on localRank
-    for (int i = 0; i < nDev; ++i) {
-      CUDACHECK(cudaSetDevice(localRank*nDev + i));
-      CUDACHECK(cudaMalloc(sendbuff + i, size * sizeof(float)));
-      CUDACHECK(cudaMalloc(recvbuff + i, size * sizeof(float)));
-      CUDACHECK(cudaMemset(sendbuff[i], 1, size * sizeof(float)));
-      CUDACHECK(cudaMemset(recvbuff[i], 0, size * sizeof(float)));
-      CUDACHECK(cudaStreamCreate(s+i));
-    }
-  
-  
-    // NCCL
-    ncclUniqueId id;
-    ncclComm_t comms[nDev];
-  
-  
-    //generating NCCL unique ID at one process and broadcasting it to all
-    if (myRank == 0) ncclGetUniqueId(&id);
-    MPICHECK(MPI_Bcast((void *)&id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD));
-
-
-    //initializing NCCL, group API is required around ncclCommInitRank as it is
-    //called across multiple GPUs in each thread/process
-    NCCLCHECK(ncclGroupStart());
-    //printf("nccl group start");
-    for (int i=0; i<nDev; i++) {
-       CUDACHECK(cudaSetDevice(localRank*nDev + i));
-       printf("cuda set device %d\n",(localRank*nDev + i));
-       NCCLCHECK(ncclCommInitRank(comms+i, nRanks*nDev, id, myRank*nDev + i));
-    }
-    NCCLCHECK(ncclGroupEnd());
-
-
-    //calling NCCL communication API. Group API is required when using
-    //multiple devices per thread/process
-    NCCLCHECK(ncclGroupStart());
-    for (int i=0; i<nDev; i++)
-       NCCLCHECK(ncclAllReduce((const void*)sendbuff[i], (void*)recvbuff[i], size, ncclFloat, ncclSum,
-             comms[i], s[i]));
-    NCCLCHECK(ncclGroupEnd());
-  }
-
-
-  void wait() { 
-    /* 
-     * wait for all reduce is complete
-     * */
-    printf("all reduce is done!\n");
-
-    //synchronizing on CUDA stream to complete NCCL communication
-    for (int i=0; i<nDev; i++)
-        CUDACHECK(cudaStreamSynchronize(s[i]));
-
-    printf("[MPI Rank %d] Success \n", myRank);
-  }
-};
-
-
-int main(int argc, char* argv[])
-{
-  printf("start\n");
-
-  int n_devices=2;
-
-  Wrapper wrapper1;
-  wrapper1.do_all_reduce(argc, argv);
-  wrapper1.wait();
-
-  printf("done\n");
-
-  return 0;
+Communicator::~Communicator(){
+  free(s);
+  free(comms);
 }

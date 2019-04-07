@@ -8,3 +8,5 @@ origin
 test_ranks
 wrapper
 wrapper.cc
+test_comm
+test_comm.o
