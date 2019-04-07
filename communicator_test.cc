@@ -1,4 +1,4 @@
-#include "wrapper.h"
+#include "communicator.h"
 
 int main(int argc, char* argv[])
 {
@@ -12,6 +12,7 @@ int main(int argc, char* argv[])
 
   struct AllReduceHandler *allReduceHandler=malloc(sizeof(*allReduceHandler));
 
+  // wrapper function
   AllReduceInit(allReduceHandler, nDev);
 
   //printf("global rank      %d\n", allReduceHandler->MPIRankInGlobal);
