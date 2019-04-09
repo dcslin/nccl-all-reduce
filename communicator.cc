@@ -25,7 +25,7 @@ Communicator::Communicator(int nDev): nDev(nDev){
   // get MPI Global Ranks and total Ranks
   MPICHECK(MPI_Comm_rank(MPI_COMM_WORLD, &MPIRankInGlobal));
   MPICHECK(MPI_Comm_size(MPI_COMM_WORLD, &totalMPIRanksInGlobal));
-  std::cout<<"g rank " << MPIRankInGlobal << "\n";
+  //std::cout<<"g rank " << MPIRankInGlobal << "\n";
 
   //calculating MPIRankInLocal which is used in selecting a GPU
   MPIRankInLocal=0;
@@ -40,7 +40,7 @@ Communicator::Communicator(int nDev): nDev(nDev){
      if (hostHashs[p] == hostHashs[MPIRankInGlobal]) MPIRankInLocal++;
   }
 
-  std::cout<<"l rank " << MPIRankInLocal << "\n";
+  //std::cout<<"l rank " << MPIRankInLocal << "\n";
 
   //picking GPUs based on MPIRankInLocal
   //create cuda stream s

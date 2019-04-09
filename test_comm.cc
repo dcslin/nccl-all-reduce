@@ -9,9 +9,10 @@ int main(int argc, char *argv[])
   // init MPI env
   MPICHECK(MPI_Init(&argc, &argv));
 
-  int nDev = 2;
-  int size = 100000;
-  int repeats = 1;
+  int nDev = atoi(argv[1]);
+  int do_test = atoi(argv[2]);
+  int size = atoi(argv[3]);
+  int repeats = 10;
 
   Communicator c(nDev);
 
@@ -41,9 +42,7 @@ int main(int argc, char *argv[])
 
   // main process of all reduce
   for(int i=0; i<repeats; i++){
-    //std::cout<<"doing all reduce..\n";
     c.allReduce(size, sendbuff, recvbuff);
-    //std::cout<<"doing waiting..\n";
     c.wait();
   }
 
@@ -54,16 +53,23 @@ int main(int argc, char *argv[])
 
   time_taken *= 1e-9;
 
-  cout << "Time taken by program is : " << fixed << time_taken << setprecision(9);
-  cout << " sec" << endl;
+  if (c.MPIRankInGlobal == 0){
+    cout << "nDev per thread: " << nDev;
+    cout << " - number of float: " << setw(9) << size;
+    cout << " - Time: " << fixed << time_taken/repeats << setprecision(9);
+    cout << " sec (avg over repeated " << repeats << " times)";
+    cout << endl;
+  }
 
 
-  //just test for first gpu
-  float receive[size];
-  CUDACHECK(cudaSetDevice(0));
-  CUDACHECK(cudaMemcpy(receive,recvbuff[0],size*sizeof(float),cudaMemcpyDeviceToHost));
-  std::cout << "Before: " << send[0]    << ", "<< send[1]    << ",...\n";
-  std::cout << "After:  " << receive[0] << ", "<< receive[1] << ",...\n";
+  if (c.MPIRankInGlobal == 0 && do_test==1){
+    //just test for rank 0, gpu 0
+    float receive[size];
+    CUDACHECK(cudaSetDevice(c.MPIRankInLocal*nDev));
+    CUDACHECK(cudaMemcpy(receive,recvbuff[0],size*sizeof(float),cudaMemcpyDeviceToHost));
+    std::cout << "Before: " << send[0]    << ", "<< send[1]    << ",...\n";
+    std::cout << "After:  " << receive[0] << ", "<< receive[1] << ",...\n";
+  }
 
 
   // clean up

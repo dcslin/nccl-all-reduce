@@ -8,4 +8,7 @@ g++ -g -Wall -std=c++11 \
     test_comm.cc communicator.cc  \
     -lmpi -lmpicxx -lcuda -lcudart -lnccl \
     -o $BINARY_NAME \
-&& mpiexec --hostfile host_file_ip ./$BINARY_NAME
+&& echo "tested on 2 nodes, 2gpu each" \
+&& mpiexec --hostfile host_file_ip_1_process ./$BINARY_NAME 2 1 5 \
+&& mpiexec --hostfile host_file_ip_2_process ./$BINARY_NAME 1 1 5 \
+echo ""
