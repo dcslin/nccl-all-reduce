@@ -1,3 +1,4 @@
+export LD_LIBRARY_PATH=/usr/local/cuda-10.0/lib64/:/home/shicong/mpich-3.3/build/lib/
 BINARY_NAME=test_comm
 g++ -g -Wall -std=c++11 \
     -I/usr/local/cuda-10.0/include/ \
