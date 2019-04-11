@@ -1,6 +1,7 @@
 #include "communicator.h"
 #include <iomanip>
 #include <chrono>
+#include <vector>
 
 using namespace std;
 
@@ -36,10 +37,7 @@ struct BuffPair {
 };
 
 
-int main(int argc, char *argv[])
-{
-  // init MPI env
-  MPICHECK(MPI_Init(&argc, &argv));
+void runResNet(int argc, char *argv[], int threshold){
 
   int nDev = atoi(argv[1]);
   int repeats = 10;
@@ -95,12 +93,30 @@ int main(int argc, char *argv[])
       256, 650};
 
 
+  vector<int> fusionParamCounts;
+  int accumulator=0;
+  for (int l=0; l<totalLayers; l++) {
+    accumulator=accumulator+paramCounts[l];
+    if( accumulator*sizeof(float) > threshold*1024 ) {
+      fusionParamCounts.push_back(accumulator);
+      accumulator=0;
+    }
+  }
+  if(fusionParamCounts.size() == 0) {
+    fusionParamCounts.push_back(accumulator);
+  }
+
+  // for (int l=0; l<fusionParamCounts.size(); l++) {
+  //     cout<< fusionParamCounts[l] << ", ";
+  // }
+
+
   Communicator c(nDev);
 
 
-  BuffPair** bps = new BuffPair*[totalLayers];
-  for (int l=0; l<totalLayers; l++) {
-    bps[l] = new BuffPair(paramCounts[l], &c);
+  BuffPair** bps = new BuffPair*[fusionParamCounts.size()];
+  for (int l=0; l<fusionParamCounts.size(); l++) {
+    bps[l] = new BuffPair(fusionParamCounts[l], &c);
   }
 
 
@@ -111,8 +127,8 @@ int main(int argc, char *argv[])
 
   // main process of all reduce
   for(int i=0; i<repeats; i++){
-    for(int l=0; l<totalLayers; l++){
-      c.allReduce(paramCounts[l], bps[l]->sb, bps[l]->rb);
+    for(int l=0; l<fusionParamCounts.size(); l++){
+      c.allReduce(fusionParamCounts[l], bps[l]->sb, bps[l]->rb);
       c.wait();
     }
   }
@@ -125,19 +141,36 @@ int main(int argc, char *argv[])
   time_taken *= 1e-9;
 
   if (c.MPIRankInGlobal == 0){
-    cout << "gpu per thread: " << nDev;
-    cout << " - Time: " << fixed << time_taken/repeats << setprecision(9);
-    cout << " sec (avg over repeated " << repeats << " times)";
+    cout << "Fusion Threshold is " << threshold << " KB\nBatches of params after fusion: "
+        << fixed << setprecision(1);
+    for(int l=0; l<fusionParamCounts.size(); l++){
+      cout  << (fusionParamCounts[l]*4.0)/1024.0 << "KB, ";
+    }
+    cout << "\n\n";
+    cout << "*****gpu per thread: " << nDev;
+    cout << " - Time: "<< fixed<< setprecision(9)  << time_taken/repeats ;
+    cout << " sec (avg over repeated " << repeats << " times)*****\n";
+    cout << "=======================================================";
     cout << endl;
   }
 
 
   // clean up
-  for(int l=0; l<totalLayers; l++){
+  for(int l=0; l<fusionParamCounts.size(); l++){
     delete(bps[l]);
   }
   delete(bps);
+}
 
+int main(int argc, char *argv[])
+{
+  // init MPI env
+  MPICHECK(MPI_Init(&argc, &argv));
+
+  runResNet(argc, argv, 1);
+  runResNet(argc, argv, 10);
+  runResNet(argc, argv, 100);
+  runResNet(argc, argv, 1000);
 
   //finalizing MPI
   MPICHECK(MPI_Finalize());
