@@ -8,8 +8,8 @@ using namespace std;
 
 struct BuffPair {
   /*
-   * send buffer
-   * receive buffer
+   * send buffer: size is n_gpu
+   * receive buffer: size is n_gpu
    */
   float** sb;
   float** rb;   
@@ -93,27 +93,28 @@ void runResNet(int argc, char *argv[], int threshold){
       256, 650};
 
 
+  // do fusion
   vector<int> fusionParamCounts;
   int accumulator=0;
   for (int l=0; l<totalLayers; l++) {
     accumulator=accumulator+paramCounts[l];
+    // we push accumulator to fusion list when it is sufficiently large
     if( accumulator*sizeof(float) > threshold*1024 ) {
       fusionParamCounts.push_back(accumulator);
+      // reset accumulator for next batch
       accumulator=0;
     }
   }
+  // if die die can not fusion even for one batch, sum up all params
   if(fusionParamCounts.size() == 0) {
     fusionParamCounts.push_back(accumulator);
   }
-
-  // for (int l=0; l<fusionParamCounts.size(); l++) {
-  //     cout<< fusionParamCounts[l] << ", ";
-  // }
 
 
   Communicator c(nDev);
 
 
+  // init buff pair for all the fusion batches
   BuffPair** bps = new BuffPair*[fusionParamCounts.size()];
   for (int l=0; l<fusionParamCounts.size(); l++) {
     bps[l] = new BuffPair(fusionParamCounts[l], &c);
@@ -129,6 +130,7 @@ void runResNet(int argc, char *argv[], int threshold){
   for(int i=0; i<repeats; i++){
     for(int l=0; l<fusionParamCounts.size(); l++){
       c.allReduce(fusionParamCounts[l], bps[l]->sb, bps[l]->rb);
+      // blocking execution, run wait following allReduce
       c.wait();
     }
   }
@@ -140,6 +142,7 @@ void runResNet(int argc, char *argv[], int threshold){
 
   time_taken *= 1e-9;
 
+  // print report
   if (c.MPIRankInGlobal == 0){
     cout << "Fusion Threshold is " << threshold << " KB - Total Batches: "
         << fusionParamCounts.size()
@@ -169,6 +172,7 @@ int main(int argc, char *argv[])
   // init MPI env
   MPICHECK(MPI_Init(&argc, &argv));
 
+  // last param is fusion threshold in KB
   runResNet(argc, argv, 1);
   runResNet(argc, argv, 10);
   runResNet(argc, argv, 100);
