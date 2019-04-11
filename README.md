@@ -7,8 +7,17 @@
 
 # testing on ResNet56v1
 
-### network is implemented in keras cifar10 [example](https://github.com/keras-team/keras/blob/master/examples/cifar10_resnet.py)
-### network summary could be found [here](https://gist.github.com/dcslin/837788ff63f5cfc5204e6d5bb719937d)
+### network reference: keras cifar10 [example](https://github.com/keras-team/keras/blob/master/examples/cifar10_resnet.py)
+### the param counts are extracted from network summary, which could be found [here](https://gist.github.com/dcslin/837788ff63f5cfc5204e6d5bb719937d)
+
+The simulation is done with the extracted param counts: e.g.
+
+| layer | param count |
+|--|--|
+| conv2d_1 | 448 |
+| batch_normalization_1 | 64 |
+| conv2d_2 | 2320 |
+| ... | ... |
 
 ### with fusion:
 ``` bash
