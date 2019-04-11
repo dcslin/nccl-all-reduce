@@ -8,7 +8,9 @@ g++ -g -Wall -std=c++11 \
     $BINARY_NAME.cc communicator.cc  \
     -lmpi -lmpicxx -lcuda -lcudart -lnccl \
     -o $BINARY_NAME \
-&& echo "tested on 2 nodes, 2gpu each" \
-&& ./$BINARY_NAME 2 \
-#&& mpiexec --hostfile host_file_ip_1_process ./$BINARY_NAME 2 \
+&& echo "tested on 2 nodes, 2 gpu each" \
+&& echo "Total params: 861,770" \
+&& mpiexec --hostfile host_file_ip_1_process ./$BINARY_NAME 2 \
+&& mpiexec --hostfile host_file_ip_2_process ./$BINARY_NAME 1 \
 echo ""
+#&& ./$BINARY_NAME 2 \

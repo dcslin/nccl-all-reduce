@@ -5,6 +5,23 @@
 - cuda 10.0
 - mpich 3.3
 
+# testing on ResNet56v1
+
+### network is implemented in keras cifar10 [example](https://github.com/keras-team/keras/blob/master/examples/cifar10_resnet.py)
+### network summary could be found [here](https://gist.github.com/dcslin/837788ff63f5cfc5204e6d5bb719937d)
+
+``` bash
+$ bash run_resnet_test.sh
+tested on 2 nodes, 2 gpu each
+Total params: 861,770
+gpu per thread: 2 - Time: 0.209903 sec (avg over repeated 10 times)
+gpu per thread: 1 - Time: 0.274776 sec (avg over repeated 10 times)
+```
+
+### with fusion(WIP):
+``` bash
+$ 
+```
 
 # testing output validating all reduce values:
 ```
