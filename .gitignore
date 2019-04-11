@@ -10,3 +10,6 @@ wrapper
 wrapper.cc
 test_comm
 test_comm.o
+test_resnet
+test_resnet.o
+*.o
