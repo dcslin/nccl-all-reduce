@@ -141,7 +141,9 @@ void runResNet(int argc, char *argv[], int threshold){
   time_taken *= 1e-9;
 
   if (c.MPIRankInGlobal == 0){
-    cout << "Fusion Threshold is " << threshold << " KB\nBatches of params after fusion: "
+    cout << "Fusion Threshold is " << threshold << " KB - Total Batches: "
+        << fusionParamCounts.size()
+        << "\nBatches of params after fusion: "
         << fixed << setprecision(1);
     for(int l=0; l<fusionParamCounts.size(); l++){
       cout  << (fusionParamCounts[l]*4.0)/1024.0 << "KB, ";

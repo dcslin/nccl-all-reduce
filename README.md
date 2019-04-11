@@ -19,50 +19,62 @@ The simulation is done with the extracted param counts: e.g.
 | conv2d_2 | 2320 |
 | ... | ... |
 
-### with fusion:
+### tested with fusion
+#### Fusion threshold set to 1KB, 10KB, 100KB, 1000KB, ran on 2 nodes, 2 gpu each node.
+2 modes are ran:
+- mode 1: 1 threads per node, 2 gpu per thread
+- mode 2: 2 threads per node, 1 gpu per thread
+
+#### all reduce setup:
+Blocking execution or in other words, run `wait()` following each `allReduce()`.
+
+#### Conclusion:
+- Small fusion Threshold does not affect much
+
+
 ``` bash
 $ bash run_resnet_test.sh
 tested on 2 nodes, 2 gpu each
 Total params: 861,770
-Fusion Threshold is 1 KB
+Fusion Threshold is 1 KB - Total Batches: 58
 Batches of params after fusion: 1.8KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 18.4KB, 36.6KB, 2.1KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 72.8KB, 145.2KB, 8.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 3.5KB, 
 
-*****gpu per thread: 2 - Time: 0.168035321 sec (avg over repeated 10 times)*****
+*****gpu per thread: 2 - Time: 0.128103123 sec (avg over repeated 10 times)*****
 =======================================================
-Fusion Threshold is 10 KB
+Fusion Threshold is 10 KB - Total Batches: 45
 Batches of params after fusion: 11.1KB, 18.6KB, 18.6KB, 18.6KB, 18.6KB, 18.6KB, 18.6KB, 18.6KB, 18.6KB, 27.7KB, 36.6KB, 38.8KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 72.8KB, 145.2KB, 153.5KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 
 
-*****gpu per thread: 2 - Time: 0.175501675 sec (avg over repeated 10 times)*****
+*****gpu per thread: 2 - Time: 0.098126687 sec (avg over repeated 10 times)*****
 =======================================================
-Fusion Threshold is 100 KB
+Fusion Threshold is 100 KB - Total Batches: 25
 Batches of params after fusion: 104.2KB, 120.2KB, 112.0KB, 109.9KB, 109.9KB, 109.9KB, 109.9KB, 109.4KB, 145.2KB, 153.5KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 
 
-*****gpu per thread: 2 - Time: 0.160774826 sec (avg over repeated 10 times)*****
+*****gpu per thread: 2 - Time: 0.097817127 sec (avg over repeated 10 times)*****
 =======================================================
-Fusion Threshold is 1000 KB
+Fusion Threshold is 1000 KB - Total Batches: 3
 Batches of params after fusion: 1030.5KB, 1025.0KB, 1016.8KB, 
 
-*****gpu per thread: 2 - Time: 0.063409082 sec (avg over repeated 10 times)*****
+*****gpu per thread: 2 - Time: 0.059677801 sec (avg over repeated 10 times)*****
 =======================================================
-Fusion Threshold is 1 KB
+Fusion Threshold is 1 KB - Total Batches: 58
 Batches of params after fusion: 1.8KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 9.3KB, 18.4KB, 36.6KB, 2.1KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 72.8KB, 145.2KB, 8.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 3.5KB, 
 
-*****gpu per thread: 1 - Time: 0.169025111 sec (avg over repeated 10 times)*****
+*****gpu per thread: 1 - Time: 0.107954671 sec (avg over repeated 10 times)*****
 =======================================================
-Fusion Threshold is 10 KB
+Fusion Threshold is 10 KB - Total Batches: 45
 Batches of params after fusion: 11.1KB, 18.6KB, 18.6KB, 18.6KB, 18.6KB, 18.6KB, 18.6KB, 18.6KB, 18.6KB, 27.7KB, 36.6KB, 38.8KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 36.6KB, 72.8KB, 145.2KB, 153.5KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 
 
-*****gpu per thread: 1 - Time: 0.183856286 sec (avg over repeated 10 times)*****
+*****gpu per thread: 1 - Time: 0.084592842 sec (avg over repeated 10 times)*****
 =======================================================
-Fusion Threshold is 100 KB
+Fusion Threshold is 100 KB - Total Batches: 25
 Batches of params after fusion: 104.2KB, 120.2KB, 112.0KB, 109.9KB, 109.9KB, 109.9KB, 109.9KB, 109.4KB, 145.2KB, 153.5KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 145.2KB, 
 
-*****gpu per thread: 1 - Time: 0.128925127 sec (avg over repeated 10 times)*****
+*****gpu per thread: 1 - Time: 0.087390314 sec (avg over repeated 10 times)*****
 =======================================================
-Fusion Threshold is 1000 KB
+Fusion Threshold is 1000 KB - Total Batches: 3
 Batches of params after fusion: 1030.5KB, 1025.0KB, 1016.8KB, 
 
-*****gpu per thread: 1 - Time: 0.080684796 sec (avg over repeated 10 times)*****
+*****gpu per thread: 1 - Time: 0.054903144 sec (avg over repeated 10 times)*****
 =======================================================
 ```
 
