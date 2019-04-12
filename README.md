@@ -1,5 +1,26 @@
 # cc wrapper around nccl all reduce api
 
+# API
+```c++
+/* 
+ *   params: nDev - N GPU per thread, e.g. 1 if 2 threads are launched on each node with 2 GPUs
+ */
+  Communicator(int nDev);
+ /* 
+ *   params: size - number of params in the buffer
+ *           sendbuff - an array of cuda pointers points to cuda 
+ *                      memory on all GPU on 1 node and share same size,
+ *                      e.g. [ GPU_0_params, GPU_1_params, ...]
+ *           recvbuff - same structure as sendbuff, if sendbuff is used
+ *                      here, then in-place operation will be done
+ */
+  void allReduce(int size, float** sendbuff, float** recvbuff);
+  /*
+   * Cuda stream synchronization, function will return when in sync
+   */
+  void wait();
+```
+
 # dependencies
 - nccl 2.4.2
 - cuda 10.0
