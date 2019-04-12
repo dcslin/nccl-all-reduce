@@ -47,8 +47,8 @@ void runResNet(int argc, char *argv[], int threshold){
    * by keras implemenation and printed by model.summary()
    */
 
-  int totalLayers = 113;
-  int paramCounts[113] = {448, 64,
+  // backup, not tested anymore
+  vector<int> paramCounts_resnet56_cifar10 = {448, 64,
       2320, 64, 2320, 64, 2320, 64,
       2320, 64, 2320, 64, 2320, 64,
       2320, 64, 2320, 64, 2320, 64,
@@ -93,10 +93,14 @@ void runResNet(int argc, char *argv[], int threshold){
       256, 650};
 
 
+  // resnet50_imagenet
+  vector<int> paramCounts = {9472, 256, 4160, 256, 36928, 256, 16640, 16640, 1024, 1024, 16448, 256, 36928, 256, 16640, 1024, 16448, 256, 36928, 256, 16640, 1024, 32896, 512, 147584, 512, 66048, 131584, 2048, 2048, 65664, 512, 147584, 512, 66048, 2048, 65664, 512, 147584, 512, 66048, 2048, 65664, 512, 147584, 512, 66048, 2048, 131328, 1024, 590080, 1024, 263168, 525312, 4096, 4096, 262400, 1024, 590080, 1024, 263168, 4096, 262400, 1024, 590080, 1024, 263168, 4096, 262400, 1024, 590080, 1024, 263168, 4096, 262400, 1024, 590080, 1024, 263168, 4096, 262400, 1024, 590080, 1024, 263168, 4096, 524800, 2048, 2359808, 2048, 1050624, 2099200, 8192, 8192, 1049088, 2048, 2359808, 2048, 1050624, 8192, 1049088, 2048, 2359808, 2048, 1050624, 8192, 2049000};
+
+
   // do fusion
   vector<int> fusionParamCounts;
   int accumulator=0;
-  for (int l=0; l<totalLayers; l++) {
+  for (int l=0; l<paramCounts.size(); l++) {
     accumulator=accumulator+paramCounts[l];
     // we push accumulator to fusion list when it is sufficiently large
     if( accumulator*sizeof(float) > threshold*1024 ) {
@@ -177,6 +181,7 @@ int main(int argc, char *argv[])
   runResNet(argc, argv, 10);
   runResNet(argc, argv, 100);
   runResNet(argc, argv, 1000);
+  runResNet(argc, argv, 10000);
 
   //finalizing MPI
   MPICHECK(MPI_Finalize());

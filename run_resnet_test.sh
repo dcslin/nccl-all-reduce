@@ -9,7 +9,9 @@ g++ -g -Wall -std=c++11 \
     -lmpi -lmpicxx -lcuda -lcudart -lnccl \
     -o $BINARY_NAME \
 && echo "tested on 2 nodes, 2 gpu each" \
-&& echo "Total params: 861,770" \
+&& echo "Total params: 25,636,712" \
+&& echo "Trainable params: 25,583,592" \
+&& echo "Non-trainable params: 53,120" \
 && mpiexec --hostfile host_file_ip_1_process ./$BINARY_NAME 2 \
 && mpiexec --hostfile host_file_ip_2_process ./$BINARY_NAME 1 \
 && echo ""
